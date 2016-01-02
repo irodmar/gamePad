@@ -1,14 +1,10 @@
 
-window.onload= init;
 
-function init() {
-    var haveEvents = 'ongamepadconnected' in window;
-    var chromeInterval = null;
-    var updateGPInterval = null;
-    
-    var gamepadInfo = document.getElementById("gamepad-info");
-    gamepadInfo.innerHTML ="If gamepad is connected press any button.";
-}
+var haveEvents = 'ongamepadconnected' in window;
+var chromeInterval = null;
+var updateGPInterval = null;
+var navegador = navigator.userAgent;
+
 
 
 // Set a threshold 
@@ -24,55 +20,46 @@ var applyDeadzone = function(number, threshold){
 
 function updateGamePad() {
     var gp = navigator.getGamepads()[0];
-    window.gp = gp;
-    if (gp.buttons[0].pressed) {
-        console.log("Take Off");
-    } else if (gp.buttons[1].pressed) {
-        console.log("Landing");
-    }
-    // axes[0] = Y
-    // axes[1] = X
-    // axes[3] = Yaw
-    // axes[4] = Alt
+    if (!gp && !haveEvents) {
+        disconnecthandler();
+        chromeInterval = setInterval(scangamepad, 1000);        
+    } else {
+        if (gp.buttons[0].pressed) {
+            enviarOrden("takeoff");
+            //console.log("Take Off");
+        } else if (gp.buttons[1].pressed) {
+            enviarOrden("land");
+            //console.log("Landing");
+        }
+        // axes[0] = Y
+        // axes[1] = X
+        // axes[3] = Yaw
+        // axes[4] = Alt
+        
+        var Y = applyDeadzone(gp.axes[0], 0.12);
+        var X = applyDeadzone(gp.axes[1], 0.12);
+        var Yaw = applyDeadzone(gp.axes[3], 0.12);
+        var Alt = applyDeadzone(gp.axes[4], 0.12);
     
-    var Y = applyDeadzone(gp.axes[0], 0.12);
-    var X = applyDeadzone(gp.axes[1], 0.12);
-    var Yaw = applyDeadzone(gp.axes[3], 0.12);
-    var Alt = applyDeadzone(gp.axes[4], 0.12);
-
-    if (X != 0) {
-            console.log("PULSADO X:" + X);
-    }
-    if (Y != 0) {
-            console.log("PULSADO Y:" + Y);
-    }
-    if (Alt != 0) {
-            console.log("PULSADO Alt:" + Alt);
-    }
-    if (Yaw != 0) {
-            console.log("PULSADO Yaw:" + Yaw);
-    }
-    sendAltYaw(-Alt, Yaw);
-    sendCMDVel(-X,Y);// Change variables and send the command to the drone
+        sendCMDVel(-X,-Y);// Change variables and send the command to the drone
+        //console.log("SendCMDVel " + -X);
+        sendAltYaw(-Alt, Yaw);
+        console.log("sendAltYaw");
+    } 
 }
 
 // Connected gamePad device
-function connecthandler(e) {
-    var gp = navigator.getGamepads()[e.gamepad.index];
-    window.gp = gp;
+function connecthandler() {
+    var gp = navigator.getGamepads()[0];
     console.log("Gamepad connected at index %d: %s. %d buttons, %d axes.", gp.index, gp.id, gp.buttons.length, gp.axes.length);
-    var gamepadInfo = document.getElementById("gamepad-info");
-    gamepadInfo.innerHTML = "Gamepad connected at index " + gp.index + ": " + gp.id + ". It has " + gp.buttons.length + " buttons and " + gp.axes.length + " axes.";
-    // Check for buttons/axes change
     updateGPInterval = setInterval(updateGamePad, 100);
     
     // ****** Borrar los joysicks
 }
 
 // Disconnectec gamePad Device 
-function disconnecthandler(e){
-    console.log("Gamepad disconnected from index %d: %s", e.gamepad.index, e.gamepad.id);
-    //gamepadInfo.innerHTML = "Waiting for a gamepad..."
+function disconnecthandler(){
+    console.log("Gamepad disconnected.");
     clearInterval(updateGPInterval);
     
     // Dibujar los joysticks
@@ -80,15 +67,16 @@ function disconnecthandler(e){
 
 
 function scangamepad() {
-    if (navigator.getGamepads()[0]){
+    var gp = navigator.getGamepads()[0];
+    if (gp){
         clearInterval(chromeInterval);
-        updateGPInterval = setInterval(updateGamePad, 100);
+        connecthandler();
     }
 }
 // detect the gamepad in chrome
-//if (haveEvents) {
+if (haveEvents) {
     window.addEventListener("gamepadconnected", connecthandler);
     window.addEventListener("gamepaddisconnected", disconnecthandler);
-//} else {
-  //  chromeInterval = setInterval(scangamepad, 1000);
-//}
+} else {
+    chromeInterval = setInterval(scangamepad, 1000);
+}
